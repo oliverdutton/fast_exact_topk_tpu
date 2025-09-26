@@ -6,11 +6,13 @@
 
 This repository provides a Pallas implementation of an exact `top-k` operation that is **~11x faster** than the standard XLA version on TPUs.
 
-| Metric         | XLA (Baseline) | This Work (Pallas) | Speedup |
+| Hardware       | XLA (Baseline) | This Work (Pallas) | Speedup |
 | :------------- | :------------- | :----------------- | :------ |
-| Execution Time | 1320µs         | 120µs              | ~11x    |
+| v5e            | 1320µs         | 120µs              | ~11x    |
+| v6e            | 1010µs         | 116µs              | ~8.7x   |
 
-*Tested on a v6e TPU with `k=64`, `batch_size=32`, and `vocab_size=201,088`.*
+
+*Tested on a various TPUs with `k=64`, `batch_size=32`, and `vocab_size=201,088`.*
 
 ---
 
