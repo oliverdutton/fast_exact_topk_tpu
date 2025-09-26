@@ -1,30 +1,61 @@
-# Fast exact top-k on TPU
+# Fast Exact Top-K on TPU
+
 [![colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/oliverdutton/fast_exact_topk_tpu/blob/main/fast_exact_topk_tpu.ipynb)
 
 <img src="https://github.com/oliverdutton/fast_exact_topk_tpu/blob/main/fast_exact_topk_tpu.png" width="840" height="600">
 
+This repository provides a Pallas implementation of an exact `top-k` operation that is **~11x faster** than the standard XLA version on TPUs.
 
-An implementation of exact top-k that's ~11x faster than the XLA version[^1].
-[^1]: (v6e TPU, top-64, batch_size=32, vocab_size=201,088: XLA 1320us, this work 120us).
+| Metric         | XLA (Baseline) | This Work (Pallas) | Speedup |
+| :------------- | :------------- | :----------------- | :------ |
+| Execution Time | 1320µs         | 120µs              | ~11x    |
 
-## Background
-### Top-k in LLMs
-In the last layer of LLMs, the hidden state is 'unembedded' to logits for each word in the models vocab [e.g. for GPT-OSS this vocab size is 201,088]. Those logits are then sampled. Often to ensure what's sampled is sensical it's advised to hard restrict sampling to just words with the largest logits (usually the top 50). That XLA top-k operation can take far longer than the actual matmul on TPU which means TPU is not going brrrr which is sad.
+*Tested on a v6e TPU with `k=64`, `batch_size=32`, and `vocab_size=201,088`.*
 
-### TPUs
-TPUs are great machines, their hardware is very cool. For instance, the VPU, it 'is a 2D vector arithmetic unit of shape (8, 128) where the 128 dimension is referred to as lane axis and the dimension of 8 is referred to as the sublane axis.' [(JAX scaling-book)](https://jax-ml.github.io/scaling-book/tpus/). Due to this 2D array structure imprinted in the hardware, operations between lanes after slow, between sublanes are okay and between full chunks is fastest. [(Pallas TPU docs)](https://docs.jax.dev/en/latest/pallas/tpu/details.html). This leads to different optimal algorithms for TPU than other accelerators which this code addresses.
+---
 
-## Algorithm
-### Explanation
-To better match TPU hardware and minimize ops across the lane axis you can split the vocab in 128 blocks and do top-m on every block very efficiently through bubble sort. Using conditionals you can increment m until the 128 top-m's contain the overall top-k elements, then do top-k on that much smaller filtered top-m subset.[^2] We use early stopping and conditionals to ensure both maximum speed and that the top-k is exact.
+## The Problem: Top-K as a Bottleneck
 
-[^2]: In practice, we increment get the 128 top-(m+1)'s, increasing m until the largest of the 128 (m+1)'th largest values is too small to be in the top-k and hence up until top-m must contain the top-k.
+In the final layer of a Large Language Model (LLM), the model produces a logit for every word in its vocabulary (e.g. 201,088 for GPT-OSS). During text generation, a sampling method is used to select the next word. A common technique, **top-k sampling**, restricts the choice to the $k$ words with the highest logits to ensure coherent output.
 
-The concept is not new and approximate top-k has been addressed in many previous works e.g. [Approximate Top-k for Increased Parallelism](https://arxiv.org/pdf/2412.04358) and [Faster Approx. top-K: Harnessing the full power of two stages](https://arxiv.org/pdf/2506.04165) however this this work is focussed on exact top-k.
+This `top-k` operation can be a bottleneck, taking longer than the massive matrix multiplication that precedes it. This inefficiency prevents the hardware from being fully utilized, and accelerators not going brrr makes me sad.
 
-### Code structure
-`fast_exact_topk_tpu.py` contains the implementation, while a  [colab](https://colab.research.google.com/github/oliverdutton/fast_exact_topk_tpu/blob/main/fast_exact_topk_tpu.ipynb) contains some tensorboard profiling and some calculations about how many iterations convergence requires.
+This work addresses that bottleneck with an algorithm designed specifically for the TPU's architecture.
 
-## Apology
-Many things are missing including tests, typing, fusing into the matmul and multi-TPU. Apologies.
+---
 
+## The Algorithm: A TPU-Native Approach
+
+### General Idea
+
+1.  **Block-wise Candidate Search**: First, we partition the full vocabulary into 128 blocks. Within each block, we perform a highly efficient local search for the `top-m`. This avoids  data shuffling across the hardware's 128 lanes.
+2.  **Final Top-K Selection**: We then gather the candidates from all blocks (a set of $128 \times m$ elements) and perform a final `top-k` operation on this much smaller, filtered subset.
+
+
+### Ensuring Exactness
+
+While many works focus on *approximate* `top-k`[^6] [^7] for performance gains, this implementation provides a fast **exact** result, which is critical for model reproducibility and correctness.
+
+[^6]: [Approximate Top-k for Increased Parallelism](https://arxiv.org/pdf/2412.04358) 
+[^7]: [Faster Approx. top-K: Harnessing the full power of two stages](https://arxiv.org/pdf/2506.04165)
+
+To guarantee the result is **exact** and not an approximation, the value of $m$ is determined dynamically. The algorithm iteratively increases $m$, checking after each iteration if the collected candidates are sufficient to contain the full global `top-k`.
+
+The process stops once there are more than $k$ values greater (or equal to) the highest of the $m$-th highest value across the 128 blocks. At this point, we can be certain that no element outside our candidate pool (of the `top-(m-1)` blocks) could possibly be in the final `top-k` set. This use of conditional early stopping ensures correctness while maximizing speed.
+
+---
+
+## Repository Structure
+
+* `fast_exact_topk_tpu.py`: The core implementation of the Pallas `block top-k` kernel and followup `top-k` on filtered candidate pool.
+* [Jupyter Notebook](https://colab.research.google.com/github/oliverdutton/fast_exact_topk_tpu/blob/main/fast_exact_topk_tpu.ipynb): A notebook containing TensorBoard profiling and calculations for the number of iterations required for convergence.
+
+---
+
+## Limitations and Future Work
+
+This is an early-stage implementation. Contributions are welcome! Key areas for future development include:
+* Adding comprehensive unit tests.
+* Improving type hinting and code documentation.
+* Fusing the `top-k` kernel directly with the preceding `matmul` operation.
+* Extending support for multi-TPU device configurations.
