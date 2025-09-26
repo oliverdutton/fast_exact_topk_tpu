@@ -28,6 +28,8 @@ This work addresses that bottleneck with an algorithm designed specifically for 
 
 ### General Idea
 
+TPUs achieve maximum performance when computations avoid data shuffling across the hardware's 128 "lanes" ([see below if unfamilar](#background-on-tpus)). Our algorithm minimizes this by splitting the problem into two stages:
+
 1.  **Block-wise Candidate Search**: First, we partition the full vocabulary into 128 blocks. Within each block, we perform a highly efficient local search for the `top-m`. This avoids  data shuffling across the hardware's 128 lanes.
 2.  **Final Top-K Selection**: We then gather the candidates from all blocks (a set of $128 \times m$ elements) and perform a final `top-k` operation on this much smaller, filtered subset.
 
@@ -59,3 +61,10 @@ This is an early-stage implementation. Contributions are welcome! Key areas for 
 * Improving type hinting and code documentation.
 * Fusing the `top-k` kernel directly with the preceding `matmul` operation.
 * Extending support for multi-TPU device configurations.
+
+---
+## Background on TPUs
+TPUs are great machines, their hardware is awesome. For instance, the VPU, it 'is a 2D vector arithmetic unit of shape (8, 128) where the 128 dimension is referred to as lane axis and the dimension of 8 is referred to as the sublane axis'[^3]. Due to this 2D array structure imprinted in the hardware, operations between lanes after slow, between sublanes are okay and between full chunks is fastest[^4]. This means algorithms designed for other accelerators can be inefficent on TPU.
+
+[^3]: [JAX scaling-book](https://jax-ml.github.io/scaling-book/tpus/)
+[^4]: [Pallas TPU docs](https://docs.jax.dev/en/latest/pallas/tpu/details.html)
