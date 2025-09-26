@@ -12,7 +12,7 @@ This repository provides a Pallas implementation of an exact `top-k` operation t
 | v6e            | 1010µs         | 116µs              | ~8.7x   |
 
 
-*Tested on a various TPUs with `k=64`, `batch_size=32`, and `vocab_size=201,088`.*
+*Tested on various TPUs with `k=64`, `batch_size=32`, and `vocab_size=201,088`.*
 
 ---
 
