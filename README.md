@@ -36,7 +36,7 @@ TPUs achieve maximum performance when computations avoid data shuffling across t
 
 ### Ensuring Exactness
 
-While many works focus on *approximate* `top-k`[^6] [^7] for performance gains, this implementation provides a fast **exact** result, which is critical for model reproducibility and correctness.
+While many works focus on *approximate* `top-k`[^6] [^7] for performance gains, this implementation provides a fast **exact** result.
 
 [^6]: [Approximate Top-k for Increased Parallelism](https://arxiv.org/pdf/2412.04358) 
 [^7]: [Faster Approx. top-K: Harnessing the full power of two stages](https://arxiv.org/pdf/2506.04165)
