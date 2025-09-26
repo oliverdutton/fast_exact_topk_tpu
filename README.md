@@ -43,7 +43,7 @@ While many works focus on *approximate* `top-k`[^6] [^7] for performance gains, 
 
 To guarantee the result is **exact** and not an approximation, the value of $m$ is determined dynamically. The algorithm iteratively increases $m$, checking after each iteration if the collected candidates are sufficient to contain the full global `top-k`.
 
-The process stops once there are more than $k$ values greater (or equal to) the highest of the $m$-th highest value across the 128 blocks. At this point, we can be certain that no element outside our candidate pool (of the `top-(m-1)` blocks) could possibly be in the final `top-k` set. This use of conditional early stopping ensures correctness while maximizing speed.
+The process stops once there are more than $k$ values greater (or equal to) the highest of the $ m $-th highest value across the 128 blocks. At this point, we can be certain that no element outside our candidate pool (of the `top-(m-1)` blocks) could possibly be in the final `top-k` set. This use of conditional early stopping ensures correctness while maximizing speed.
 
 ---
 
@@ -64,7 +64,7 @@ This is an early-stage implementation. Contributions are welcome! Key areas for 
 
 ---
 ## Background on TPUs
-TPUs are great machines, their hardware is awesome. For instance, the VPU, it 'is a 2D vector arithmetic unit of shape (8, 128) where the 128 dimension is referred to as lane axis and the dimension of 8 is referred to as the sublane axis'[^3]. Due to this 2D array structure imprinted in the hardware, operations between lanes after slow, between sublanes are okay and between full chunks is fastest[^4]. This means algorithms designed for other accelerators can be inefficent on TPU.
+TPUs are great machines, their hardware is awesome. For instance, the VPU, it 'is a 2D vector arithmetic unit of shape (8, 128) where the 128 dimension is referred to as lane axis and the dimension of 8 is referred to as the sublane axis'[^3]. Due to this 2D array structure imprinted in the hardware, operations between lanes after slow, between sublanes are okay and between full chunks is fastest[^4]. This means algorithms designed for other accelerators can be inefficient on TPU.
 
 [^3]: [JAX scaling-book](https://jax-ml.github.io/scaling-book/tpus/)
 [^4]: [Pallas TPU docs](https://docs.jax.dev/en/latest/pallas/tpu/details.html)
