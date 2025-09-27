@@ -1,7 +1,3 @@
-# !pip install tensorboard tensorboard-plugin-profile
-# Pip install will require a restart, then comment the code
-
-
 import functools
 import math
 
@@ -165,7 +161,7 @@ def topk_blockwise_superset_kernel(
 
 
 # Pallas function
-def blockwise_topk_pallas(logits, k, num_blocks=128, block_token=None, m_schedule=None):
+def topk_blockwise_superset_pallas(logits, k, num_blocks=128, block_token=None, m_schedule=None):
   num_tokens, vocab_size = logits.shape
   if block_token is None:
     block_token = min(32, num_tokens)
@@ -234,7 +230,7 @@ def topk_optimized(
   m_stage2_schedule=None,
   block_token=None,
 ):
-  topk_val, topk_index, termination_m, _ = blockwise_topk_pallas(
+  topk_val, topk_index, termination_m, _ = topk_blockwise_superset_pallas(
     logits,
     k=k,
     block_token=block_token,
