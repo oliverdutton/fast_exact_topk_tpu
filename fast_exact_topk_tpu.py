@@ -8,7 +8,13 @@ from jax.experimental.pallas import tpu as pltpu
 
 
 def blockwise_topk(
-  logits, k, block_topk_val=None, block_topk_index=None, start_k=0, num_blocks=128, mode="jax"
+  logits,
+  k,
+  block_topk_val=None,
+  block_topk_index=None,
+  start_k=0,
+  num_blocks=128,
+  mode="jax",
 ):
   """Compute blockwise top-k."""
   ntokens = logits.shape[0]
@@ -53,7 +59,9 @@ def blockwise_topk(
         # Nothing will be exchanged into the completed block topk, we just need
         # to invalidate it from flowing downward. So we check if it's already
         # found and invalidate if so.
-        vals_carry = jnp.where(index_carry == block_topk_index[i], float("-inf"), vals_carry)
+        vals_carry = jnp.where(
+          index_carry == block_topk_index[i], float("-inf"), vals_carry
+        )
       else:
         # Sinking sort
         mask = vals_carry > block_topk_val[i]
@@ -161,7 +169,9 @@ def topk_blockwise_superset_kernel(
 
 
 # Pallas function
-def topk_blockwise_superset_pallas(logits, k, num_blocks=128, block_token=None, m_schedule=None):
+def topk_blockwise_superset_pallas(
+  logits, k, num_blocks=128, block_token=None, m_schedule=None
+):
   num_tokens, vocab_size = logits.shape
   if block_token is None:
     block_token = min(32, num_tokens)
@@ -197,18 +207,20 @@ def topk_blockwise_superset_pallas(logits, k, num_blocks=128, block_token=None, 
   )(logits)
 
 
-def topk_on_filtered_subset(topk_val, topk_index, k):
-  num_blocks = topk_val[0].shape[-1]
-  topk_logits, local_indices = jax.lax.top_k(jnp.concatenate(topk_val, axis=-1), k=k)
+def topk_on_filtered_subset(block_topm_val, block_topm_index, k):
+  num_blocks = block_topm_val[0].shape[-1]
+  topk_logits, local_indices = jax.lax.top_k(
+    jnp.concatenate(block_topm_val, axis=-1), k=k
+  )
 
   @jax.vmap
-  def unravel_indices(local_indices, topk_index):
+  def unravel_indices(local_indices, block_topm_index):
     m, col = jnp.unravel_index(local_indices, (k, num_blocks))
-    row = jnp.stack(topk_index)[m, col]
+    row = jnp.stack(block_topm_index)[m, col]
     flat_index = row * num_blocks + col
     return flat_index
 
-  topk_flat_indices = unravel_indices(local_indices, topk_index)
+  topk_flat_indices = unravel_indices(local_indices, block_topm_index)
   return topk_logits, topk_flat_indices
 
 
@@ -224,13 +236,16 @@ def topk_on_filtered_subset(topk_val, topk_index, k):
 )
 def topk_optimized(
   logits,
-  k=64,
-  num_blocks=128,
-  m_stage1_schedule=None,
-  m_stage2_schedule=None,
-  block_token=None,
+  k: int = 64,
+  num_blocks: int = 128,
+  m_stage1_schedule: tuple[int] | None = None,
+  m_stage2_schedule: tuple[int] | None = None,
+  block_token: int | None = None,
 ):
-  topk_val, topk_index, termination_m, _ = topk_blockwise_superset_pallas(
+  """Fast implementation of jax.lax.top_k on TPUs."""
+  if logits.ndim != 2:
+    raise ValueError("Expected 2D input")
+  block_topm_val, block_topm_index, termination_m, _ = topk_blockwise_superset_pallas(
     logits,
     k=k,
     block_token=block_token,
@@ -244,20 +259,25 @@ def topk_optimized(
   # in practice 8 nearly always sufficient
   if m_stage2_schedule is None:
     m_init = 8
-    m_stage2_schedule = (
-      [-1] + [m_init * (2**i) for i in range(int(math.log2(k // m_init)) + 1)] + [k]
-    )
+    m_stage2_schedule = [
+      m_init * (2**i) for i in range(int(math.log2(k // m_init)) + 1)
+    ]
+  # Guarantee all cases covered
+  m_stage2_schedule = (-1,) + tuple(m_stage2_schedule) + (k,)
 
   # Buffer for output to be written in to
   topk_logits, topk_flat_indices = jax.tree.map(
-    jnp.zeros_like, topk_on_filtered_subset(topk_val[:1], topk_index[:1], k=k)
+    jnp.zeros_like,
+    topk_on_filtered_subset(block_topm_val[:1], block_topm_index[:1], k=k),
   )
   max_m = termination_m.max()
   for lower_m, upper_m in zip(m_stage2_schedule, m_stage2_schedule[1:]):
     topk_logits, topk_flat_indices = jax.lax.cond(
       (max_m > lower_m) & (max_m <= upper_m),
       lambda *args: topk_on_filtered_subset(
-        topk_val=topk_val[:upper_m], topk_index=topk_index[:upper_m], k=k
+        block_topm_val=block_topm_val[:upper_m],
+        block_topm_index=block_topm_index[:upper_m],
+        k=k,
       ),
       lambda *args: args,
       topk_logits,
