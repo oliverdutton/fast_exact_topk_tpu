@@ -1,0 +1,19 @@
+[project]
+name = "fast_exact_topk_tpu"
+version = "0.1.0"
+description = "Fast exact top-k algorithm implementation for TPU using JAX and Pallas"
+authors = [
+    { name = "Oliver Dutton" }
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.8"
+
+[project.dependencies]
+jax = ">=0.4.0"
+numpy = ">=1.21.0"
+tensorboard = ">=2.11.0"
+tensorboard-plugin-profile = ">=2.11.0"
+
+[tool.ruff]
+indent-width = 2
