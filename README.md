@@ -18,7 +18,7 @@ This repository provides a Pallas implementation of an exact `top-k` operation t
 
 ## The Problem: Top-K as a Bottleneck
 
-In the final layer of a Large Language Model (LLM), the model produces a logit for every word in its vocabulary (e.g. 201,088 for GPT-OSS). During text generation, a sampling method is used to select the next word. A common technique, **top-k sampling**, restricts the choice to the $k$ words with the highest logits to ensure coherent output.
+In the final layer of a Large Language Model (LLM), the model produces a logit for every word in its vocabulary (e.g. 201,088 for GPT-OSS). During text generation, a sampling method is used to select the next word. A common technique, **top-k sampling**, restricts the choice to the `k` words with the highest logits to ensure coherent output.
 
 This `top-k` operation can be a bottleneck, taking longer than the massive matrix multiplication that precedes it. This inefficiency prevents the hardware from being fully utilized, and accelerators not going brrr makes me sad.
 
@@ -43,9 +43,9 @@ While many works focus on *approximate* `top-k`[^6] [^7] for performance gains, 
 [^6]: [Approximate Top-k for Increased Parallelism](https://arxiv.org/pdf/2412.04358) 
 [^7]: [Faster Approx. top-K: Harnessing the full power of two stages](https://arxiv.org/pdf/2506.04165)
 
-To guarantee the result is **exact** and not an approximation, the value of $m$ is determined dynamically. The algorithm iteratively increases $m$, checking after each iteration if the collected candidates are sufficient to contain the full global `top-k`.
+To guarantee the result is **exact** and not an approximation, the value of `m` is determined dynamically. The algorithm iteratively increases `m`, checking after each iteration if the collected candidates are sufficient to contain the full global `top-k`.
 
-The process stops once there are more than $k$ values greater (or equal to) the highest of the $ m $-th highest value across the 128 blocks. At this point, we can be certain that no element outside our candidate pool (of the `top-(m-1)` blocks) could possibly be in the final `top-k` set. This use of conditional early stopping ensures correctness while maximizing speed.
+The process stops once there are more than `k` values greater (or equal to) the highest of the `m`-th highest value across the 128 blocks. At this point, we can be certain that no element outside our candidate pool (of the `top-(m-1)` blocks) could possibly be in the final `top-k` set. This use of conditional early stopping ensures correctness while maximizing speed.
 
 ---
 
