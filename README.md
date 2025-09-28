@@ -45,7 +45,7 @@ While many works focus on *approximate* `top-k`[^6] [^7] for performance gains, 
 
 To guarantee the result is **exact** and not an approximation, the value of `m` is determined dynamically. The algorithm iteratively increases `m`, checking after each iteration if the collected candidates are sufficient to contain the full global `top-k`.
 
-The process stops once there are more than `k` values greater (or equal to) the highest of the `m`-th highest value across the 128 blocks. At this point, we can be certain that no element outside our candidate pool (of the `top-(m-1)` blocks) could possibly be in the final `top-k` set. This use of conditional early stopping ensures correctness while maximizing speed.
+The process stops once there are more than `k` values greater (or equal to) the highest of the `m`-th highest value across the 128 blocks. At this point, we can be certain that no element outside our candidate pool (of the block `top-(m-1)`s) could possibly be in the final `top-k` set. This use of conditional early stopping ensures correctness while maximizing speed.
 
 ---
 
