@@ -2,14 +2,12 @@
 
 [![colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/oliverdutton/fast_exact_topk_tpu/blob/main/fast_exact_topk_tpu.ipynb)
 
-<img src="https://github.com/oliverdutton/fast_exact_topk_tpu/blob/main/fast_exact_topk_tpu.png" width="840" height="600">
-
-This repository provides a Pallas implementation of an exact `top-k` operation that is **~11x faster** than the standard XLA version on TPUs.
+This repository provides a Pallas implementation of an exact `top-k` operation that is **~16x faster** than the standard XLA version on TPUs.
 
 | Hardware       | XLA (Baseline) | This Work (Pallas) | Speedup |
 | :------------- | :------------- | :----------------- | :------ |
-| v5e            | 1320µs         | 120µs              | ~11x    |
-| v6e            | 1010µs         | 116µs              | ~8.7x   |
+| v5e            | 1320µs         | 81µs              | ~16x    |
+| v6e            | 1010µs         | 82µs              | ~12x   |
 
 
 *Tested on various TPUs with `k=64`, `batch_size=32`, and `vocab_size=201,088`.*
@@ -63,7 +61,6 @@ This is an early-stage implementation. Contributions are welcome! Key areas for 
 * Improving type hinting and code documentation.
 * Fusing the `top-k` kernel directly with the preceding `matmul` operation.
 * Extending support for multi-TPU device configurations.
-* Make ~70% faster for cases where all top-k vals are > 0 by packing bfloat16 value and uint16 index into 32 bits and doing comparisons in int32. This greatly reduces VPU usage. Add final check that top-k were all > 0, running again from scratch with unpacked if not true (that case should be astonomically unlikely)
 
 ---
 ## Background on TPUs
