@@ -2,12 +2,12 @@
 
 [![colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/oliverdutton/fast_exact_topk_tpu/blob/main/fast_exact_topk_tpu.ipynb)
 
-This repository provides a Pallas implementation of an exact `top-k` operation that is **~16x faster** than the standard XLA version on TPUs.
+This repository provides a Pallas implementation of an exact `top-k` operation that is **~19x faster** than the standard XLA version on TPUs.
 
 | Hardware       | XLA (Baseline) | This Work (Pallas) | Speedup |
 | :------------- | :------------- | :----------------- | :------ |
-| v5e            | 1320µs         | 81µs              | ~16x    |
-| v6e            | 1010µs         | 82µs              | ~12x   |
+| v5e            | 1320µs         | 68µs              | ~19x    |
+| v6e            | 1010µs         | 68µs              | ~15x   |
 
 
 *Tested on various TPUs with `k=64`, `batch_size=32`, and `vocab_size=201,088`.*
