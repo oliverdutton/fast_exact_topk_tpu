@@ -63,7 +63,8 @@ This is an early-stage implementation. Contributions are welcome! Key areas for 
 * Improving type hinting and code documentation.
 * Fusing the `top-k` kernel directly with the preceding `matmul` operation.
 * Extending support for multi-TPU device configurations.
-* Make ~70% faster for cases where all top-k vals are > 0 by packing bfloat16 value and uint16 index into 32 bits and doing comparisons in int32. This greatly reduces VPU usage. Add final check that top-k were all > 0, running again from scratch with unpacked if not true (that case should be astonomically unlikely)
+* Try pack bfloat16 value and uint16 index
+ into 32 bits and do comparisons in float32
 
 ---
 ## Background on TPUs
