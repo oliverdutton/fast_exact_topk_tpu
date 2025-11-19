@@ -953,8 +953,10 @@ def _substage_hbm_kernel(
   output_vmem_refs,
   *,
   num_keys: int,
+  descending: bool,
 ):
   """Kernel for substage that doesn't fit in VMEM."""
+  shape = input_hbm_refs[0].shape
   # Handle sublane dimension indexing
   sublane_block = input_vmem_refs[0].shape[-2]
   sublane_slice = pl.dslice(pl.program_id(0) * sublane_block, sublane_block)
@@ -1014,8 +1016,7 @@ def _substage_hbm_kernel(
       else:
         scratch_ref[slot] = input_ref[slot].astype(scratch_ref.dtype)
         refs.append(tuple(scratch_ref[slot]))
-
-    is_descending = _create_bit_indicator(stage, start_idx)
+    is_descending = _create_bit_indicator(stage, start_idx + int(descending) * shape[1])
     outputs = _compare(
       *_transpose_list_of_lists(refs),
       is_descending=is_descending,
@@ -1058,13 +1059,14 @@ def _substage_hbm_kernel(
 
 @functools.partial(
   jax.jit,
-  static_argnames=('block_shape', 'num_keys')
+  static_argnames=('block_shape', 'num_keys', 'descending')
 )
 def _compute_substage_hbm(
   operand,
   substage,
   stage,
   num_keys: int,
+  descending: bool,
   block_shape=None,
 ):
   """Run substage without loading full lane dimension into VMEM."""
@@ -1091,7 +1093,8 @@ def _compute_substage_hbm(
   )
 
   return pl.pallas_call(
-    functools.partial(_substage_hbm_kernel, num_keys=num_keys),
+    functools.partial(_substage_hbm_kernel, num_keys=num_keys,
+    descending=descending),
     grid=(operands[0].shape[0] // block_shape[0],),
     out_shape=(output_shape,),
     in_specs=input_specs,
@@ -1209,7 +1212,7 @@ def lax_sort_pallas(
       def _compute_substages_hbm_body(i, operands):
         substage = stage - 1 - i
         return _compute_substage_hbm(
-          operands, substage, stage, num_keys=num_keys
+          operands, substage, stage, num_keys=num_keys, descending=descending
         )
   
       # HBM-based substages for cross-VMEM-block operations
