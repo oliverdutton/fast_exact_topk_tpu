@@ -1,3 +1,5 @@
+[Archived] Moved to [tallax](https://github.com/oliverdutton/tallax), accelerated JAX for TPU using Pallas. Runtime improved further to 40µs on v5e, 33x speedup.
+
 # Fast Exact Top-K on TPU
 
 [![colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/oliverdutton/fast_exact_topk_tpu/blob/main/fast_exact_topk_tpu.ipynb)
